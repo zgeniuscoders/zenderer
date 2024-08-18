@@ -1,0 +1,16 @@
+{
+    "name": "zgeniuscoders/zenderer",
+    "description": "Zenderer - a lightweight, simple, and powerful PHP template engine, like the fires of hell",
+    "autoload": {
+        "psr-4": {
+            "Zgeniuscoders\\Zenderer\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "zgeniuscoders",
+            "email": "zgeniuscoders@gmail.com"
+        }
+    ],
+    "require": {}
+}
