@@ -7,4 +7,6 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Zgeniuscoders\\Zenderer\\' => array($baseDir . '/src'),
+    'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
+    'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
 );

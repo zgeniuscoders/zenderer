@@ -12,5 +12,8 @@
             "email": "zgeniuscoders@gmail.com"
         }
     ],
-    "require": {}
+    "require": {
+        "guzzlehttp/psr7": "^2.7",
+        "psr/http-message": "^2.0"
+    }
 }

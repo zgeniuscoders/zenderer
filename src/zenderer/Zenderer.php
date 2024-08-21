@@ -1,27 +1,62 @@
 <?php
 
-namespace Zgeniuscoders\Zenderer;
+namespace Zgeniuscoders\Zenderer\Zenderer;
+
+use GuzzleHttp\Psr7\Response;
+use Psr\Http\Message\ResponseInterface;
+use Zgeniuscoders\Zenderer\Zenderer\Exceptions\TemplateVariableTypeException;
 
 class Zenderer
 {
-
-    private string $path;
+    private string $template;
     private array $data;
-
 
     public function renderer(string $path, array $data = [])
     {
-        $content = $this->getContent($path);
-        $this->renderTemplateVariables($content);
+        $this->data = $data;
+        $this->template = $this->getContent($path);
 
-        // Extract variables
-        extract($data);
+        $this->renderTemplateVariables();
 
-        // Execute the PHP code
-        ob_start();
-        eval('?>' . $content . '<?php');
-        return ob_get_clean();
+        $response = (new Response())
+            ->withStatus(200)
+            ->withHeader('Content-Type', 'text/html');
+
+        $st = $response->getBody();
+        $st->write($this->template);
+
+
+        $this->send($response);
     }
+
+    private function send(ResponseInterface $response)
+    {
+        $http_line = sprintf(
+            'HTTP/%s %s %s',
+            $response->getProtocolVersion(),
+            $response->getStatusCode(),
+            $response->getReasonPhrase()
+        );
+
+        header($http_line, true, $response->getStatusCode());
+
+        foreach ($response->getHeaders() as $name => $values) {
+            foreach ($values as $value) {
+                header("$name: $value", false);
+            }
+        }
+
+        $stream = $response->getBody();
+
+        if ($stream->isSeekable()) {
+            $stream->rewind();
+        }
+
+        while (!$stream->eof()) {
+            echo $stream->read(1024 * 8);
+        }
+    }
+
 
     private function getContent(string $template)
     {
@@ -37,63 +72,17 @@ class Zenderer
      * @param string $content The content string to be processed.
      * @return void The function modifies the `$content` parameter directly, no return value.
      */
-    private function renderTemplateVariables(string &$content): void
+    private function renderTemplateVariables(): void
     {
-        $content = preg_replace('/\{\{(\w+)\}\}/', '<?php echo $\\1; ?>', $content);
+        $this->template = preg_replace_callback('/\{\{(\w+)\}\}/', [$this, 'replaceContent'], $this->template);
     }
 
-
-    private function replaceIfStatement(string &$content): void
+    private function replaceContent($match)
     {
-        $content = preg_replace(
-            '/{%\s*if\s*(\w+)\s*%}(.*?){%\s*endif\s*%}/s',
-            '<?php if ($\\1) : ?>\$2<?php endif; ?>',
-            $content
-        );
-    }
-
-    private function replaceIfElseStatement(string &$content): void
-    {
-        $content = preg_replace(
-            '/{%\s*if\s*(\w+)\s*%}(.*?){%\s*else\s*%}(.*?){%\s*endif\s*%}/s',
-            '<?php if ($\\1) : ?>\$2<?php else : ?>\$3<?php endif; ?>',
-            $content
-        );
-    }
-
-    private function replaceWhileLoops(string &$content): void
-    {
-        $content = preg_replace(
-            '/{%\s*while\s*(\w+)\s*%}(.*?){%\s*endwhile\s*%}/s',
-            '<?php while ($\\1) : ?>\$2<?php endwhile; ?>',
-            $content
-        );
-    }
-
-    private function replaceDoWhileLoops(string &$content): void
-    {
-        $content = preg_replace(
-            '/{%\s*do\s*%}(.*?){%\s*while\s*(\w+)\s*%}/s',
-            '<?php do : ?>\$1<?php while ($\\2); ?>',
-            $content
-        );
-    }
-
-    private function replaceForLoops(string &$content): void
-    {
-        $content = preg_replace(
-            '/{%\s*for\s*(\w+)\s*in\s*(\w+)\s*%}(.*?){%\s*endfor\s*%}/s',
-            '<?php for ($\\1 = 0; $\\1 < count($\\2); $\\1++) : ?>\$3<?php endfor; ?>',
-            $content
-        );
-    }
-
-    private function replaceForEachLoops(string &$content): void
-    {
-        $content = preg_replace(
-            '/{%\s*for\s*(\w+)\s*,\s*(\w+)\s*in\s*(\w+)\s*%}(.*?){%\s*endfor\s*%}/s',
-            '<?php foreach ($\\3 as $\\1 => $\\2) : ?>\$4<?php endforeach; ?>',
-            $content
-        );
+        if ($match[1] === "data") {
+            throw new TemplateVariableTypeException("Array variables are not supported for template replacement. Please use scalar variables only.");
+        } else {
+            return $this->data[$match[1]];
+        }
     }
 }
